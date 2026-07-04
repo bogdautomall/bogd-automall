@@ -3,6 +3,8 @@ import { ShieldCheck, Wallet, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { MountainDivider } from "@/components/mountain-divider";
+import { VehicleCard } from "@/components/vehicle-card";
+import { getVehicles } from "@/lib/queries/vehicles";
 
 const HIGHLIGHTS = [
   {
@@ -22,7 +24,11 @@ const HIGHLIGHTS = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { vehicles: featured } = await getVehicles({
+    featuredOnly: true,
+    pageSize: 3,
+  });
   return (
     <main>
       {/* Hero */}
@@ -75,23 +81,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Inventory teaser — honest placeholder until vehicles are added */}
-      <section className="border-t border-border/60 bg-secondary/30">
-        <div className="mx-auto max-w-4xl px-6 py-20 text-center">
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">
-            Каталог бэлтгэгдэж байна
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-            Удахгүй манай бүрэн сонголтыг эндээс үзэх боломжтой болно.
-            Одоохондоо машин сонголтын талаар лавлах бол бидэнтэй холбогдоно уу.
-          </p>
-          <div className="mt-8">
-            <Button asChild>
-              <Link href="/contact">Холбоо барих</Link>
-            </Button>
+      {/* Featured vehicles or honest placeholder */}
+      {featured.length > 0 ? (
+        <section className="border-t border-border/60 bg-secondary/30">
+          <div className="mx-auto max-w-6xl px-6 py-20">
+            <div className="flex items-end justify-between">
+              <h2 className="font-display text-2xl font-bold sm:text-3xl">
+                Онцлох машинууд
+              </h2>
+              <Link
+                href="/inventory"
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Бүгдийг үзэх →
+              </Link>
+            </div>
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {featured.map((vehicle) => (
+                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <section className="border-t border-border/60 bg-secondary/30">
+          <div className="mx-auto max-w-4xl px-6 py-20 text-center">
+            <h2 className="font-display text-2xl font-bold sm:text-3xl">
+              Каталог бэлтгэгдэж байна
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-muted-foreground">
+              Удахгүй манай бүрэн сонголтыг эндээс үзэх боломжтой болно.
+              Одоохондоо машин сонголтын талаар лавлах бол бидэнтэй холбогдоно уу.
+            </p>
+            <div className="mt-8">
+              <Button asChild>
+                <Link href="/contact">Холбоо барих</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
