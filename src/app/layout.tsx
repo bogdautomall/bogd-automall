@@ -1,9 +1,32 @@
 import type { Metadata } from "next";
+import { Golos_Text, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// Phase 1 uses a system font stack (zero external requests, fast first
-// paint). Phase 3 will replace this with deliberately chosen brand
-// typography per the visual identity work — see frontend-design guidance.
+import { ThemeProvider } from "@/components/theme-provider";
+import { Header } from "@/components/site/header";
+import { Footer } from "@/components/site/footer";
+
+// Display face — used sparingly for headlines. Geometric and confident,
+// with full Cyrillic support (required for Mongolian).
+const golosText = Golos_Text({
+  variable: "--font-display",
+  subsets: ["latin", "cyrillic"],
+  weight: ["500", "600", "700", "900"],
+});
+
+// Body face — clean, highly legible in both Latin and Cyrillic at small
+// sizes, used for all running text and UI labels.
+const inter = Inter({
+  variable: "--font-body",
+  subsets: ["latin", "cyrillic"],
+});
+
+// Utility/data face — used for prices, mileage, specs: anywhere precise
+// numbers matter, tabular figures read like a spec sheet.
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono-data",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: {
@@ -20,10 +43,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   // Default language is Mongolian (mn) per project requirements.
-  // The mn/en language toggle is implemented in Phase 3.
+  // The mn/en language toggle is implemented in Phase 3 (in progress).
   return (
-    <html lang="mn" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html
+      lang="mn"
+      suppressHydrationWarning
+      className={`${golosText.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col font-sans">
+        <ThemeProvider>
+          <Header />
+          <div className="flex-1">{children}</div>
+          <Footer />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

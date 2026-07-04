@@ -4,53 +4,62 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
-  /* Base neutral palette (shadcn "new-york" style, neutral base).
-     These are placeholder tokens for Phase 1 scaffolding.
-     Phase 3 will replace these with Bogd Automall's actual brand
-     palette once the visual identity is finalized. */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* ============================================================
+     BOGD AUTOMALL DESIGN TOKENS
+     Named palette (derived from the brand logo):
+       Ink        #0E0D0C  — dark background
+       Bone       #F7F5F1  — light background
+       Gold       #F0B90B  — primary accent (matches logo gold)
+       Gold Deep  #B9860B  — secondary accent / hover states
+       Graphite   #1C1B17  — dark text on light surfaces
+       Steel      #6B6558  — muted text on light surfaces
+     Default theme is LIGHT here; .dark below overrides to the
+     charcoal/gold dark theme that matches the logo most closely.
+     ============================================================ */
+
+  --background: #F7F5F1;
+  --foreground: #1C1B17;
+  --card: #FFFFFF;
+  --card-foreground: #1C1B17;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1B17;
+  --primary: #B9860B;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EDEAE3;
+  --secondary-foreground: #1C1B17;
+  --muted: #EDEAE3;
+  --muted-foreground: #6B6558;
+  --accent: #F0B90B;
+  --accent-foreground: #1C1B17;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2DED4;
+  --input: #E2DED4;
+  --ring: #B9860B;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: #0E0D0C;
+  --foreground: #F5F1E6;
+  --card: #17150F;
+  --card-foreground: #F5F1E6;
+  --popover: #17150F;
+  --popover-foreground: #F5F1E6;
+  --primary: #F0B90B;
+  --primary-foreground: #17130A;
+  --secondary: #232019;
+  --secondary-foreground: #F5F1E6;
+  --muted: #232019;
+  --muted-foreground: #A39C8C;
+  --accent: #B9860B;
+  --accent-foreground: #F5F1E6;
+  --destructive: #E5484D;
+  --destructive-foreground: #F5F1E6;
+  --border: #2A2620;
+  --input: #2A2620;
+  --ring: #F0B90B;
 }
 
 @theme inline {
@@ -77,9 +86,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono-data);
 }
 
 @layer base {
@@ -88,5 +97,11 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }
