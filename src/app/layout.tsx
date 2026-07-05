@@ -3,6 +3,7 @@ import { Golos_Text, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageProvider } from "@/lib/i18n/language-context";
 import { Header } from "@/components/site/header";
 import { Footer } from "@/components/site/footer";
 
@@ -52,9 +53,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <ThemeProvider>
-          <Header />
-          <div className="flex-1">{children}</div>
-          <Footer />
+          <LanguageProvider>
+            <Header />
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

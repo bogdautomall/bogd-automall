@@ -10,17 +10,19 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageToggle } from "@/components/site/language-toggle";
-
-const NAV_LINKS = [
-  { href: "/", label: "Нүүр" },
-  { href: "/inventory", label: "Каталог" },
-  { href: "/about", label: "Бидний тухай" },
-  { href: "/contact", label: "Холбоо барих" },
-];
+import { useLanguage } from "@/lib/i18n/language-context";
 
 export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const { t } = useLanguage();
+
+  const NAV_LINKS = [
+    { href: "/", label: t.nav.home },
+    { href: "/inventory", label: t.nav.inventory },
+    { href: "/about", label: t.nav.about },
+    { href: "/contact", label: t.nav.contact },
+  ];
 
   // Admin routes get no public site chrome distractions in the nav.
   if (pathname?.startsWith("/admin")) return null;

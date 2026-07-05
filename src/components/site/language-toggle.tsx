@@ -1,25 +1,20 @@
 "use client";
 
-import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/lib/i18n/language-context";
 
-/**
- * Visual language switch. Currently a display-only toggle between MN/EN —
- * wiring this to actual route-based i18n (so it changes real page content)
- * is a separate Phase 3 task once page copy exists in both languages.
- */
 export function LanguageToggle() {
-  const [lang, setLang] = React.useState<"MN" | "EN">("MN");
+  const { locale, setLocale } = useLanguage();
 
   return (
     <Button
       variant="ghost"
       size="sm"
       className="font-mono text-xs tracking-wider"
-      onClick={() => setLang((l) => (l === "MN" ? "EN" : "MN"))}
+      onClick={() => setLocale(locale === "mn" ? "en" : "mn")}
       aria-label="Switch language"
     >
-      {lang}
+      {locale === "mn" ? "MN" : "EN"}
     </Button>
   );
 }

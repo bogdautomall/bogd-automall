@@ -6,9 +6,17 @@ import { usePathname } from "next/navigation";
 import { Phone, Mail, MapPin } from "lucide-react";
 
 import { MountainDivider } from "@/components/mountain-divider";
+import { FacebookIcon, InstagramIcon } from "@/components/icons";
+import { useLanguage } from "@/lib/i18n/language-context";
+
+const PHONE_NUMBERS = ["80111501", "88665160", "88835160"];
+const EMAIL = "bogd.automall@gmail.com";
+const FACEBOOK_URL = "https://www.facebook.com/Bogd.Automall";
+const INSTAGRAM_URL = "https://www.instagram.com/bogd_automall";
 
 export function Footer() {
   const pathname = usePathname();
+  const { t } = useLanguage();
   if (pathname?.startsWith("/admin")) return null;
 
   return (
@@ -35,29 +43,48 @@ export function Footer() {
               </span>
             </div>
             <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-              Таны итгэлтэй хамтрагч — чанартай автомашин сонголт, найдвартай
-              үйлчилгээ.
+              {t.footer.tagline}
             </p>
+            <div className="mt-4 flex items-center gap-3">
+              <a
+                href={FACEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="flex size-8 items-center justify-center rounded-full bg-secondary text-foreground/70 transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                <FacebookIcon className="size-4" />
+              </a>
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="flex size-8 items-center justify-center rounded-full bg-secondary text-foreground/70 transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                <InstagramIcon className="size-4" />
+              </a>
+            </div>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold tracking-wide uppercase text-foreground/90">
-              Шуурхай холбоос
+              {t.footer.quickLinks}
             </h3>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/inventory" className="hover:text-primary">
-                  Каталог
+                  {t.nav.inventory}
                 </Link>
               </li>
               <li>
                 <Link href="/about" className="hover:text-primary">
-                  Бидний тухай
+                  {t.nav.about}
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="hover:text-primary">
-                  Холбоо барих
+                  {t.nav.contact}
                 </Link>
               </li>
             </ul>
@@ -65,17 +92,17 @@ export function Footer() {
 
           <div>
             <h3 className="text-sm font-semibold tracking-wide uppercase text-foreground/90">
-              Эрх зүй
+              {t.footer.legal}
             </h3>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/privacy" className="hover:text-primary">
-                  Нууцлалын бодлого
+                  {t.footer.privacy}
                 </Link>
               </li>
               <li>
                 <Link href="/terms" className="hover:text-primary">
-                  Үйлчилгээний нөхцөл
+                  {t.footer.terms}
                 </Link>
               </li>
             </ul>
@@ -83,28 +110,29 @@ export function Footer() {
 
           <div>
             <h3 className="text-sm font-semibold tracking-wide uppercase text-foreground/90">
-              Холбоо барих
+              {t.footer.contact}
             </h3>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Phone className="size-4 text-primary" />
-                <span>+976 XXXX XXXX</span>
+              <li className="flex items-start gap-2">
+                <Phone className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>{PHONE_NUMBERS.join(", ")}</span>
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="size-4 text-primary" />
-                <span>info@bogdautomall.mn</span>
+                <Mail className="size-4 shrink-0 text-primary" />
+                <a href={`mailto:${EMAIL}`} className="hover:text-primary">
+                  {EMAIL}
+                </a>
               </li>
-              <li className="flex items-center gap-2">
-                <MapPin className="size-4 text-primary" />
-                <span>Улаанбаатар, Монгол</span>
+              <li className="flex items-start gap-2">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>{t.contact.address}</span>
               </li>
             </ul>
           </div>
         </div>
 
         <div className="mt-12 border-t border-border/60 pt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Bogd Automall. Бүх эрх хуулиар
-          хамгаалагдсан.
+          © {new Date().getFullYear()} Bogd Automall. {t.footer.rights}
         </div>
       </div>
     </footer>
