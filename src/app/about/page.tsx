@@ -52,7 +52,7 @@ export default function AboutPage() {
           </h2>
           <div className="mt-6">
             <Button asChild size="lg">
-              <Link href="/inventory">{t.about.ctaButton}</Link>
+              <Link href="/#listings">{t.about.ctaButton}</Link>
             </Button>
           </div>
         </div>

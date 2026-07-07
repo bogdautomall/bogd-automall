@@ -5,10 +5,12 @@ export function InventoryPagination({
   currentPage,
   totalPages,
   searchParams,
+  basePath = "/",
 }: {
   currentPage: number;
   totalPages: number;
   searchParams: Record<string, string | undefined>;
+  basePath?: string;
 }) {
   if (totalPages <= 1) return null;
 
@@ -20,7 +22,7 @@ export function InventoryPagination({
       ][]
     );
     params.set("page", String(page));
-    return `/inventory?${params.toString()}`;
+    return `${basePath}?${params.toString()}#listings`;
   }
 
   return (

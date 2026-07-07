@@ -32,7 +32,7 @@ export function SortSelect() {
       params.set("sort", value);
     }
     params.delete("page");
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}#listings`);
   }
 
   return (

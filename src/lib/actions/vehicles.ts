@@ -179,6 +179,7 @@ export async function createVehicle(formData: FormData) {
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/inventory");
+  revalidatePath("/");
   redirect("/admin/dashboard");
 }
 
@@ -245,6 +246,7 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/inventory");
+  revalidatePath("/");
   revalidatePath(`/admin/dashboard/vehicles/${vehicleId}/edit`);
   redirect("/admin/dashboard");
 }
@@ -277,6 +279,7 @@ export async function deleteVehicle(vehicleId: string) {
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/inventory");
+  revalidatePath("/");
 }
 
 export async function setAvailability(
@@ -294,6 +297,7 @@ export async function setAvailability(
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/inventory");
+  revalidatePath("/");
 }
 
 export async function toggleFeatured(vehicleId: string, next: boolean) {

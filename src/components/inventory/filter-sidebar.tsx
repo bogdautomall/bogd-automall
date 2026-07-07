@@ -66,7 +66,7 @@ export function FilterSidebar({ options }: { options: FilterOptions }) {
     const sort = searchParams.get("sort");
     if (sort) params.set("sort", sort);
 
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}#listings`);
   }
 
   function clearFilters() {
@@ -82,7 +82,7 @@ export function FilterSidebar({ options }: { options: FilterOptions }) {
     setMinPrice("");
     setMaxPrice("");
     setFeaturedOnly(false);
-    router.push(pathname);
+    router.push(`${pathname}#listings`);
   }
 
   return (

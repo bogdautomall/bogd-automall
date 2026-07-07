@@ -19,7 +19,7 @@ export function Header() {
 
   const NAV_LINKS = [
     { href: "/", label: t.nav.home },
-    { href: "/inventory", label: t.nav.inventory },
+    { href: "/#listings", label: t.nav.inventory },
     { href: "/about", label: t.nav.about },
     { href: "/contact", label: t.nav.contact },
   ];

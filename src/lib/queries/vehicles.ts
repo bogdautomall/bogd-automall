@@ -188,3 +188,34 @@ export async function getFilterOptions(): Promise<FilterOptions> {
     priceBounds,
   };
 }
+
+export async function getBrandModelCounts(): Promise<{
+  brandCounts: Record<string, number>;
+  modelCounts: Record<string, number>;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vehicles")
+    .select("brand_id, model_id")
+    .neq("availability_status", "archived");
+
+  if (error) {
+    console.error("getBrandModelCounts error:", error.message);
+    return { brandCounts: {}, modelCounts: {} };
+  }
+
+  const brandCounts: Record<string, number> = {};
+  const modelCounts: Record<string, number> = {};
+
+  (data ?? []).forEach((v) => {
+    if (v.brand_id) {
+      brandCounts[v.brand_id] = (brandCounts[v.brand_id] || 0) + 1;
+    }
+    if (v.model_id) {
+      modelCounts[v.model_id] = (modelCounts[v.model_id] || 0) + 1;
+    }
+  });
+
+  return { brandCounts, modelCounts };
+}
+

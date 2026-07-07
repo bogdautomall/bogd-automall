@@ -73,7 +73,7 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/inventory" className="hover:text-primary">
+                <Link href="/#listings" className="hover:text-primary">
                   {t.nav.inventory}
                 </Link>
               </li>
