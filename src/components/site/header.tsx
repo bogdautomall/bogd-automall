@@ -8,7 +8,6 @@ import { Menu, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageToggle } from "@/components/site/language-toggle";
 import { useLanguage } from "@/lib/i18n/language-context";
 
@@ -19,7 +18,7 @@ export function Header() {
 
   const NAV_LINKS = [
     { href: "/", label: t.nav.home },
-    { href: "/#listings", label: t.nav.inventory },
+    { href: "/#vehicle-listings-head", label: t.nav.inventory },
     { href: "/about", label: t.nav.about },
     { href: "/contact", label: t.nav.contact },
   ];
@@ -67,7 +66,6 @@ export function Header() {
 
         <div className="flex items-center gap-1">
           <LanguageToggle />
-          <ThemeToggle />
           <Button
             variant="ghost"
             size="icon"

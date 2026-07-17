@@ -178,7 +178,6 @@ export async function createVehicle(formData: FormData) {
   await uploadVehicleImages(supabase, vehicle.id, images, 0);
 
   revalidatePath("/admin/dashboard");
-  revalidatePath("/inventory");
   revalidatePath("/");
   redirect("/admin/dashboard");
 }
@@ -245,7 +244,6 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
   await uploadVehicleImages(supabase, vehicleId, newImages, existingCount ?? 0);
 
   revalidatePath("/admin/dashboard");
-  revalidatePath("/inventory");
   revalidatePath("/");
   revalidatePath(`/admin/dashboard/vehicles/${vehicleId}/edit`);
   redirect("/admin/dashboard");
@@ -278,7 +276,6 @@ export async function deleteVehicle(vehicleId: string) {
   if (error) throw new Error(`Машин устгахад алдаа гарлаа: ${error.message}`);
 
   revalidatePath("/admin/dashboard");
-  revalidatePath("/inventory");
   revalidatePath("/");
 }
 
@@ -296,7 +293,6 @@ export async function setAvailability(
   if (error) throw new Error(`Төлөв өөрчлөхөд алдаа гарлаа: ${error.message}`);
 
   revalidatePath("/admin/dashboard");
-  revalidatePath("/inventory");
   revalidatePath("/");
 }
 
@@ -311,6 +307,5 @@ export async function toggleFeatured(vehicleId: string, next: boolean) {
   if (error) throw new Error(`Онцлох төлөв өөрчлөхөд алдаа гарлаа: ${error.message}`);
 
   revalidatePath("/admin/dashboard");
-  revalidatePath("/inventory");
   revalidatePath("/");
 }

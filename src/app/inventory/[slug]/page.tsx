@@ -80,8 +80,8 @@ export default async function VehicleDetailPage({
       vehicle.steering_position === "left"
         ? "Зүүн"
         : vehicle.steering_position === "right"
-        ? "Баруун"
-        : "—",
+          ? "Баруун"
+          : "—",
     ],
     ["Гадна өнгө", vehicle.exterior_color?.name_mn ?? "—"],
     ["Дотор өнгө", vehicle.interior_color?.name_mn ?? "—"],
@@ -122,7 +122,7 @@ export default async function VehicleDetailPage({
           Нүүр
         </Link>
         <ChevronRight className="size-3.5" />
-        <Link href="/inventory" className="hover:text-primary">
+        <Link href="/#vehicle-listings-head" className="hover:text-primary">
           Каталог
         </Link>
         <ChevronRight className="size-3.5" />

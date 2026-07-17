@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Vehicle, VehicleFilters, Brand, Model, LookupItem } from "@/types/vehicle";
+import type { Vehicle, VehicleFilters, Brand, Model, LookupItem, Color } from "@/types/vehicle";
 
 const VEHICLE_SELECT = `
   *,
@@ -25,7 +25,8 @@ export async function getVehicles(
 
   let query = supabase
     .from("vehicles")
-    .select(VEHICLE_SELECT, { count: "exact" });
+    .select(VEHICLE_SELECT, { count: "exact" })
+    .neq("availability_status", "archived");
 
   if (filters.brandId) query = query.eq("brand_id", filters.brandId);
   if (filters.modelId) query = query.eq("model_id", filters.modelId);
@@ -145,6 +146,7 @@ export interface FilterOptions {
   transmissionTypes: LookupItem[];
   driveTypes: LookupItem[];
   bodyTypes: LookupItem[];
+  colors: Color[];
   priceBounds: { min: number; max: number };
 }
 
@@ -158,6 +160,7 @@ export async function getFilterOptions(): Promise<FilterOptions> {
     { data: transmissionTypes },
     { data: driveTypes },
     { data: bodyTypes },
+    { data: colors },
     { data: priceRows },
   ] = await Promise.all([
     supabase.from("brands").select("*").order("name_en"),
@@ -166,6 +169,7 @@ export async function getFilterOptions(): Promise<FilterOptions> {
     supabase.from("transmission_types").select("*").order("name_en"),
     supabase.from("drive_types").select("*").order("name_en"),
     supabase.from("body_types").select("*").order("name_en"),
+    supabase.from("colors").select("*").order("name_en"),
     supabase
       .from("vehicles")
       .select("price")
@@ -185,6 +189,7 @@ export async function getFilterOptions(): Promise<FilterOptions> {
     transmissionTypes: (transmissionTypes ?? []) as LookupItem[],
     driveTypes: (driveTypes ?? []) as LookupItem[],
     bodyTypes: (bodyTypes ?? []) as LookupItem[],
+    colors: (colors ?? []) as Color[],
     priceBounds,
   };
 }
