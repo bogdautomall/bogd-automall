@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Car, Gauge, Fuel, ShieldCheck, MapPin, Milestone, Settings, Eye } from "lucide-react";
+import { Car, Gauge, Fuel, ShieldCheck, MapPin, Milestone, Settings, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +19,32 @@ interface VehicleCardProps {
 
 export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
   const { locale, t } = useLanguage();
-  const cover = vehicle.vehicle_images?.[0];
+  const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
+
+  const images = vehicle.vehicle_images ?? [];
+  const hasMultipleImages = images.length > 1;
+  const cover = images[currentImageIndex];
+
   const isSold = vehicle.availability_status === "sold";
   const isReserved = vehicle.availability_status === "reserved";
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleDotClick = (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex(index);
+  };
 
   // Localized field helpers
   const brandName = locale === "en" ? vehicle.brand.name_en : vehicle.brand.name_mn;
@@ -40,26 +63,27 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
 
   if (layout === "list") {
     return (
-      <Link
-        href={`/inventory/${vehicle.slug}`}
+      <div
         className="group flex flex-col md:flex-row overflow-hidden rounded-xl border border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.99] w-full"
       >
         {/* Image holder */}
-        <div className="relative aspect-[16/10] md:aspect-auto md:w-80 shrink-0 overflow-hidden bg-secondary">
-          {cover ? (
-            <Image
-              src={getStorageUrl(cover.storage_path)}
-              alt={`${brandName} ${modelName}`}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, 320px"
-              loading="lazy"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted-foreground min-h-[200px]">
-              <Car className="size-12" strokeWidth={1} />
-            </div>
-          )}
+        <div className="relative aspect-[16/10] md:aspect-auto md:w-80 shrink-0 overflow-hidden bg-secondary group/img">
+          <Link href={`/inventory/${vehicle.slug}`} className="absolute inset-0 block z-0">
+            {cover ? (
+              <Image
+                src={getStorageUrl(cover.storage_path)}
+                alt={`${brandName} ${modelName}`}
+                fill
+                className="object-cover transition-transform duration-500 group-hover/img:scale-105"
+                sizes="(max-width: 768px) 100vw, 320px"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground min-h-[200px]">
+                <Car className="size-12" strokeWidth={1} />
+              </div>
+            )}
+          </Link>
 
           {/* Badges */}
           <div className="absolute left-3 top-3 flex flex-col gap-1.5 z-10">
@@ -85,10 +109,55 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
               </Badge>
             </div>
           )}
+
+          {hasMultipleImages && (
+            <>
+              {/* Prev Button */}
+              <button
+                onClick={handlePrev}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+
+              {/* Next Button */}
+              <button
+                onClick={handleNext}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+                aria-label="Next image"
+              >
+                <ChevronRight className="size-5" />
+              </button>
+
+              {/* Image Counter */}
+              <div className="absolute right-3 top-3 z-10 bg-black/50 text-white font-mono text-[10px] px-2 py-0.5 rounded backdrop-blur-[2px] font-semibold">
+                {currentImageIndex + 1} / {images.length}
+              </div>
+
+              {/* Dots */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1">
+                {images.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => handleDotClick(e, idx)}
+                    className={cn(
+                      "size-1.5 rounded-full transition-all duration-300",
+                      idx === currentImageIndex ? "bg-white w-3" : "bg-white/50 hover:bg-white"
+                    )}
+                    aria-label={`Go to image ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Info */}
-        <div className="flex-1 p-6 flex flex-col justify-between">
+        <Link
+          href={`/inventory/${vehicle.slug}`}
+          className="flex-1 p-6 flex flex-col justify-between hover:no-underline group/info"
+        >
           <div>
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 border-b border-border/40 pb-4">
               <div>
@@ -203,8 +272,8 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
               )}
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      </div>
     );
   }
 
@@ -212,26 +281,27 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
   const isCompact = layout === "compact";
 
   return (
-    <Link
-      href={`/inventory/${vehicle.slug}`}
+    <div
       className="group block overflow-hidden rounded-xl border border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.99]"
     >
       {/* Image container */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
-        {cover ? (
-          <Image
-            src={getStorageUrl(cover.storage_path)}
-            alt={`${brandName} ${modelName}`}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <Car className="size-12" strokeWidth={1} />
-          </div>
-        )}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary group/img">
+        <Link href={`/inventory/${vehicle.slug}`} className="absolute inset-0 block z-0">
+          {cover ? (
+            <Image
+              src={getStorageUrl(cover.storage_path)}
+              alt={`${brandName} ${modelName}`}
+              fill
+              className="object-cover transition-transform duration-500 group-hover/img:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+              <Car className="size-12" strokeWidth={1} />
+            </div>
+          )}
+        </Link>
 
         {/* Badges */}
         <div className="absolute left-3 top-3 flex flex-col gap-1.5 z-10">
@@ -257,10 +327,55 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
             </Badge>
           </div>
         )}
+
+        {hasMultipleImages && (
+          <>
+            {/* Prev Button */}
+            <button
+              onClick={handlePrev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+
+            {/* Next Button */}
+            <button
+              onClick={handleNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+              aria-label="Next image"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+
+            {/* Image Counter */}
+            <div className="absolute right-3 top-3 z-10 bg-black/50 text-white font-mono text-[10px] px-2 py-0.5 rounded backdrop-blur-[2px] font-semibold">
+              {currentImageIndex + 1} / {images.length}
+            </div>
+
+            {/* Dots */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1">
+              {images.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => handleDotClick(e, idx)}
+                  className={cn(
+                    "size-1.5 rounded-full transition-all duration-300",
+                    idx === currentImageIndex ? "bg-white w-3" : "bg-white/50 hover:bg-white"
+                  )}
+                  aria-label={`Go to image ${idx + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Info details */}
-      <div className={cn("p-5", isCompact ? "space-y-2.5 p-4" : "space-y-4")}>
+      <Link
+        href={`/inventory/${vehicle.slug}`}
+        className={cn("block p-5 hover:no-underline", isCompact ? "space-y-2.5 p-4" : "space-y-4")}
+      >
         <div>
           <span className="text-[10px] font-bold text-[#B9860B] uppercase tracking-widest font-mono">
             {brandName}
@@ -336,7 +451,7 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
         ) : (
           /* Compact View Specs showing only mileage and transmission in simple badge layout */
           <div className="flex flex-wrap gap-1.5 pt-1 text-[10px]">
-            <span className="px-2 py-0.5 roundedbg-secondary text-muted-foreground font-mono font-medium">
+            <span className="px-2 py-0.5 rounded bg-secondary text-muted-foreground font-mono font-medium">
               {formatMileage(vehicle.mileage)}
             </span>
             {transmissionName && (
@@ -355,7 +470,7 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
             </span>
           </div>
         )}
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
