@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FacebookIcon, InstagramIcon } from "@/components/icons";
 import { useLanguage } from "@/lib/i18n/language-context";
 
-const PHONE_NUMBERS = ["80111501", "88665160", "88835160"];
+const PHONE_NUMBERS = ["80892202", "80372202"];
 const EMAIL = "bogd.automall@gmail.com";
 const FACEBOOK_URL = "https://www.facebook.com/Bogd.Automall";
 const INSTAGRAM_URL = "https://www.instagram.com/bogd_automall";
