@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { useFormStatus } from "react-dom";
-import { X, ImagePlus } from "lucide-react";
+import { X, ImagePlus, Video, GripVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,9 +19,9 @@ import {
 } from "@/components/ui/select";
 import { CreatableCombobox } from "@/components/admin/creatable-combobox";
 import { getStorageUrl } from "@/lib/supabase/storage";
-import { deleteVehicleImage } from "@/lib/actions/vehicles";
+import { deleteVehicleImage, deleteVehicleVideo } from "@/lib/actions/vehicles";
 import type { VehicleFormOptions } from "@/lib/queries/admin";
-import type { Vehicle } from "@/types/vehicle";
+import type { Vehicle, VehicleImage, VehicleVideo } from "@/types/vehicle";
 
 const MAX_IMAGES = 20;
 
@@ -33,6 +33,181 @@ function SubmitButton({ label }: { label: string }) {
     </Button>
   );
 }
+
+// ─── Drag & Drop Image Sorter ──────────────────────────────────
+
+interface DraggableImageItem {
+  type: "existing" | "new";
+  id: string; // For existing: DB id. For new: generated key
+  existingImage?: VehicleImage;
+  file?: File;
+  previewUrl?: string;
+}
+
+function DraggableImageList({
+  items,
+  onReorder,
+  onRemoveExisting,
+  onRemoveNew,
+}: {
+  items: DraggableImageItem[];
+  onReorder: (items: DraggableImageItem[]) => void;
+  onRemoveExisting: (imageId: string, storagePath: string) => void;
+  onRemoveNew: (id: string) => void;
+}) {
+  const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
+
+  function handleDragStart(e: React.DragEvent, index: number) {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    // Set a transparent drag image
+    const el = e.currentTarget as HTMLElement;
+    e.dataTransfer.setDragImage(el, 40, 40);
+  }
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
+  }
+
+  function handleDrop(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const newItems = [...items];
+    const [dragged] = newItems.splice(draggedIndex, 1);
+    newItems.splice(index, 0, dragged);
+    onReorder(newItems);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }
+
+  function handleDragEnd() {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }
+
+  // Touch-based reordering for mobile
+  const [touchDragIndex, setTouchDragIndex] = React.useState<number | null>(null);
+
+  function moveItem(fromIndex: number, direction: "left" | "right") {
+    const toIndex = direction === "left" ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= items.length) return;
+    const newItems = [...items];
+    const [moved] = newItems.splice(fromIndex, 1);
+    newItems.splice(toIndex, 0, moved);
+    onReorder(newItems);
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mb-3">
+      <p className="mb-2 text-xs text-muted-foreground">
+        Зургуудыг чирч дарааллыг нь өөрчлөх боломжтой. Эхний зураг нүүр зураг болно.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {items.map((item, index) => {
+          const isDragged = draggedIndex === index;
+          const isDragOver = dragOverIndex === index && draggedIndex !== index;
+          const isFirst = index === 0;
+          const isTouchActive = touchDragIndex === index;
+
+          const imgSrc = item.type === "existing"
+            ? getStorageUrl(item.existingImage!.storage_path)
+            : item.previewUrl!;
+
+          return (
+            <div
+              key={item.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+              className={`group relative size-20 rounded-md border-2 transition-all cursor-grab active:cursor-grabbing ${isDragged ? "opacity-40 scale-95" : ""
+                } ${isDragOver ? "border-primary border-dashed scale-105" : "border-transparent"
+                } ${isFirst ? "ring-2 ring-primary ring-offset-1" : ""}`}
+              onClick={() => setTouchDragIndex(isTouchActive ? null : index)}
+            >
+              <Image
+                src={imgSrc}
+                alt=""
+                fill
+                className="rounded-md object-cover pointer-events-none"
+                sizes="80px"
+                unoptimized={item.type === "new"}
+              />
+
+              {/* Drag handle overlay */}
+              <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/0 group-hover:bg-black/20 transition-colors">
+                <GripVertical className="size-5 text-white opacity-0 group-hover:opacity-80 drop-shadow transition-opacity" />
+              </div>
+
+              {/* First image badge */}
+              {isFirst && (
+                <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground shadow">
+                  Нүүр
+                </span>
+              )}
+
+              {/* Delete button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (item.type === "existing") {
+                    onRemoveExisting(item.existingImage!.id, item.existingImage!.storage_path);
+                  } else {
+                    onRemoveNew(item.id);
+                  }
+                }}
+                className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100 z-10"
+              >
+                <X className="size-3" />
+              </button>
+
+              {/* Mobile reorder controls */}
+              {isTouchActive && (
+                <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex gap-1 z-20">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveItem(index, "left"); }}
+                    disabled={index === 0}
+                    className="rounded bg-background border px-1.5 py-0.5 text-[10px] font-bold shadow disabled:opacity-30"
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveItem(index, "right"); }}
+                    disabled={index === items.length - 1}
+                    className="rounded bg-background border px-1.5 py-0.5 text-[10px] font-bold shadow disabled:opacity-30"
+                  >
+                    →
+                  </button>
+                </div>
+              )}
+
+              {/* Order number */}
+              <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 py-0.5 text-[9px] font-mono text-white font-bold">
+                {index + 1}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Form ─────────────────────────────────────────────────
 
 export function VehicleForm({
   options,
@@ -51,38 +226,143 @@ export function VehicleForm({
   const [interiorColor, setInteriorColor] = React.useState(
     vehicle?.interior_color?.id ?? ""
   );
-  const [newFiles, setNewFiles] = React.useState<File[]>([]);
-  const [existingImages, setExistingImages] = React.useState(
-    vehicle?.vehicle_images ?? []
+
+  // Image state: merge existing + new into draggable items
+  const [imageItems, setImageItems] = React.useState<DraggableImageItem[]>(() => {
+    return (vehicle?.vehicle_images ?? [])
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((img) => ({
+        type: "existing" as const,
+        id: img.id,
+        existingImage: img,
+      }));
+  });
+
+  // Video state
+  const [existingVideos, setExistingVideos] = React.useState<VehicleVideo[]>(
+    vehicle?.vehicle_videos ?? []
   );
+  const [newVideoFiles, setNewVideoFiles] = React.useState<File[]>([]);
+
+  // Hidden file input ref for images
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
+  // Hidden file input ref for videos
+  const videoInputRef = React.useRef<HTMLInputElement>(null);
+  // Ref to hold DataTransfer to accumulate files
+  const accumulatedFilesRef = React.useRef<DataTransfer>(new DataTransfer());
 
   const modelOptions = options.models
     .filter((m) => !brand.startsWith("__new__:") && m.brand_id === brand)
     .map((m) => ({ value: m.id, label: m.name_mn }));
 
-  const totalImageCount = existingImages.length + newFiles.length;
+  const totalImageCount = imageItems.length;
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
-    const allowed = MAX_IMAGES - existingImages.length;
+    if (picked.length === 0) return;
+
+    const allowed = MAX_IMAGES - totalImageCount;
+    const filesToAdd = picked.slice(0, allowed);
+
     if (picked.length > allowed) {
       alert(
         `Хамгийн ихдээ ${MAX_IMAGES} зураг байршуулах боломжтой. Та дахин ${allowed} зураг сонгож болно.`
       );
-      setNewFiles(picked.slice(0, allowed));
-    } else {
-      setNewFiles(picked);
+    }
+
+    const newItems: DraggableImageItem[] = filesToAdd.map((file) => {
+      const id = crypto.randomUUID();
+      return {
+        type: "new" as const,
+        id,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      };
+    });
+
+    setImageItems((prev) => [...prev, ...newItems]);
+
+    // Reset the file input so the same file can be selected again
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  }
+
+  function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length === 0) return;
+    setNewVideoFiles((prev) => [...prev, ...picked]);
+    if (videoInputRef.current) {
+      videoInputRef.current.value = "";
     }
   }
 
   async function handleDeleteExisting(imageId: string, storagePath: string) {
     if (!confirm("Энэ зургийг устгах уу?")) return;
     await deleteVehicleImage(imageId, storagePath);
-    setExistingImages((prev) => prev.filter((img) => img.id !== imageId));
+    setImageItems((prev) => prev.filter((item) => item.id !== imageId));
+  }
+
+  function handleRemoveNew(id: string) {
+    setImageItems((prev) => {
+      const item = prev.find((i) => i.id === id);
+      if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      return prev.filter((i) => i.id !== id);
+    });
+  }
+
+  async function handleDeleteExistingVideo(videoId: string, storagePath: string) {
+    if (!confirm("Энэ бичлэгийг устгах уу?")) return;
+    await deleteVehicleVideo(videoId, storagePath);
+    setExistingVideos((prev) => prev.filter((v) => v.id !== videoId));
+  }
+
+  function handleRemoveNewVideo(index: number) {
+    setNewVideoFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // Custom form submit to build proper FormData with ordered files
+  function handleFormAction(formData: FormData) {
+    // Remove the default "images" entries (they come from the hidden input)
+    formData.delete("images");
+    formData.delete("videos");
+
+    // Add new images in the correct order
+    const newImageItems = imageItems.filter((item) => item.type === "new" && item.file);
+    for (const item of newImageItems) {
+      formData.append("images", item.file!);
+    }
+
+    // Build the existing image order data
+    const existingOrder = imageItems
+      .filter((item) => item.type === "existing")
+      .map((item, idx) => ({
+        id: item.id,
+        sort_order: imageItems.indexOf(item),
+      }));
+
+    if (existingOrder.length > 0) {
+      formData.set("image_order", JSON.stringify(existingOrder));
+    }
+
+    // For new images in create mode, pass the order
+    if (!vehicle) {
+      const newOrder = imageItems
+        .filter((item) => item.type === "new")
+        .map((item) => newImageItems.indexOf(item));
+      formData.set("image_order", JSON.stringify(newOrder));
+    }
+
+    // Add video files
+    for (const file of newVideoFiles) {
+      formData.append("videos", file);
+    }
+
+    return action(formData);
   }
 
   return (
-    <form action={action} className="space-y-8">
+    <form action={handleFormAction} className="space-y-8">
       {/* Hidden inputs mirror combobox state into the form submission */}
       <input type="hidden" name="brand" value={brand} />
       <input type="hidden" name="model" value={model} />
@@ -340,56 +620,25 @@ export function VehicleForm({
         />
       </section>
 
+      {/* ─── Images Section ─── */}
       <section>
         <Label className="mb-1.5">
           Зураг ({totalImageCount}/{MAX_IMAGES})
         </Label>
 
-        {existingImages.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-3">
-            {existingImages.map((img) => (
-              <div key={img.id} className="group relative size-20">
-                <Image
-                  src={getStorageUrl(img.storage_path)}
-                  alt=""
-                  fill
-                  className="rounded-md object-cover"
-                  sizes="80px"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleDeleteExisting(img.id, img.storage_path)}
-                  className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {newFiles.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-3">
-            {newFiles.map((file, i) => (
-              <div key={i} className="relative size-20">
-                <Image
-                  src={URL.createObjectURL(file)}
-                  alt=""
-                  fill
-                  className="rounded-md object-cover"
-                  sizes="80px"
-                  unoptimized
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        <DraggableImageList
+          items={imageItems}
+          onReorder={setImageItems}
+          onRemoveExisting={handleDeleteExisting}
+          onRemoveNew={handleRemoveNew}
+        />
 
         {totalImageCount < MAX_IMAGES && (
-          <label className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-primary">
+          <label className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
             <ImagePlus className="size-4" />
             Зураг нэмэх
             <input
+              ref={imageInputRef}
               type="file"
               name="images"
               accept="image/*"
@@ -400,7 +649,75 @@ export function VehicleForm({
           </label>
         )}
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Нэг машинд хамгийн ихдээ 20 зураг байршуулах боломжтой.
+          Нэг машинд хамгийн ихдээ 20 зураг байршуулах боломжтой. Зургуудыг чирж дарааллыг нь солих боломжтой.
+        </p>
+      </section>
+
+      {/* ─── Videos Section ─── */}
+      <section>
+        <Label className="mb-1.5">
+          Бичлэг ({existingVideos.length + newVideoFiles.length})
+        </Label>
+
+        {existingVideos.length > 0 && (
+          <div className="mb-3 space-y-3">
+            {existingVideos.map((video) => (
+              <div key={video.id} className="group relative rounded-lg overflow-hidden bg-black">
+                <video
+                  src={getStorageUrl(video.storage_path)}
+                  controls
+                  className="w-full max-h-48 rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleDeleteExistingVideo(video.id, video.storage_path)}
+                  className="absolute right-2 top-2 rounded-full bg-destructive p-1.5 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {newVideoFiles.length > 0 && (
+          <div className="mb-3 space-y-3">
+            {newVideoFiles.map((file, i) => (
+              <div key={i} className="group relative flex items-center gap-3 rounded-lg border border-border p-3">
+                <Video className="size-8 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(file.size / (1024 * 1024)).toFixed(1)} MB
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveNewVideo(i)}
+                  className="rounded-full bg-destructive p-1 text-destructive-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+          <Video className="size-4" />
+          Бичлэг нэмэх
+          <input
+            ref={videoInputRef}
+            type="file"
+            name="videos"
+            accept="video/*"
+            multiple
+            className="hidden"
+            onChange={handleVideoChange}
+          />
+        </label>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Машины бичлэгийг энд оруулна уу. MP4, MOV, WebM зэрэг форматууд дэмжинэ.
         </p>
       </section>
 

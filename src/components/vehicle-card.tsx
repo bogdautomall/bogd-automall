@@ -17,34 +17,203 @@ interface VehicleCardProps {
   layout?: "grid" | "compact" | "list";
 }
 
+/** Custom hook for mobile touch swipe */
+function useSwipe(
+  onSwipeLeft: () => void,
+  onSwipeRight: () => void,
+  enabled: boolean
+) {
+  const touchStartX = React.useRef<number | null>(null);
+  const touchStartY = React.useRef<number | null>(null);
+  const touchEndX = React.useRef<number | null>(null);
+  const isSwiping = React.useRef(false);
+
+  const handlers = React.useMemo(() => {
+    if (!enabled) return {};
+
+    return {
+      onTouchStart: (e: React.TouchEvent) => {
+        touchStartX.current = e.targetTouches[0].clientX;
+        touchStartY.current = e.targetTouches[0].clientY;
+        touchEndX.current = null;
+        isSwiping.current = false;
+      },
+      onTouchMove: (e: React.TouchEvent) => {
+        if (touchStartX.current === null || touchStartY.current === null) return;
+        touchEndX.current = e.targetTouches[0].clientX;
+
+        const deltaX = Math.abs(e.targetTouches[0].clientX - touchStartX.current);
+        const deltaY = Math.abs(e.targetTouches[0].clientY - touchStartY.current);
+
+        // If horizontal movement is dominant, prevent vertical scroll and mark as swiping
+        if (deltaX > deltaY && deltaX > 10) {
+          isSwiping.current = true;
+          e.preventDefault();
+        }
+      },
+      onTouchEnd: () => {
+        if (
+          touchStartX.current === null ||
+          touchEndX.current === null ||
+          !isSwiping.current
+        ) {
+          touchStartX.current = null;
+          touchStartY.current = null;
+          return;
+        }
+
+        const diff = touchStartX.current - touchEndX.current;
+        const threshold = 50;
+
+        if (diff > threshold) {
+          onSwipeLeft(); // swipe left = next
+        } else if (diff < -threshold) {
+          onSwipeRight(); // swipe right = prev
+        }
+
+        touchStartX.current = null;
+        touchStartY.current = null;
+        touchEndX.current = null;
+        isSwiping.current = false;
+      },
+    };
+  }, [onSwipeLeft, onSwipeRight, enabled]);
+
+  return handlers;
+}
+
+/** Shared image slider component */
+function ImageSlider({
+  images,
+  currentIndex,
+  onPrev,
+  onNext,
+  onDotClick,
+  alt,
+  sizes,
+  className,
+  swipeHandlers,
+}: {
+  images: Vehicle["vehicle_images"];
+  currentIndex: number;
+  onPrev: (e: React.MouseEvent) => void;
+  onNext: (e: React.MouseEvent) => void;
+  onDotClick: (e: React.MouseEvent, index: number) => void;
+  alt: string;
+  sizes: string;
+  className?: string;
+  swipeHandlers: Record<string, (e: React.TouchEvent) => void>;
+}) {
+  const hasMultiple = images.length > 1;
+  const cover = images[currentIndex];
+
+  return (
+    <div className={cn("relative w-full overflow-hidden bg-secondary", className)} {...swipeHandlers}>
+      {cover ? (
+        <Image
+          src={getStorageUrl(cover.storage_path)}
+          alt={alt}
+          fill
+          className="object-cover transition-transform duration-500"
+          sizes={sizes}
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground min-h-[200px]">
+          <Car className="size-12" strokeWidth={1} />
+        </div>
+      )}
+
+      {hasMultiple && (
+        <>
+          {/* Prev Button - always visible on mobile */}
+          <button
+            onClick={onPrev}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all md:opacity-0 md:group-hover/img:opacity-100"
+            aria-label="Previous image"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+
+          {/* Next Button - always visible on mobile */}
+          <button
+            onClick={onNext}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all md:opacity-0 md:group-hover/img:opacity-100"
+            aria-label="Next image"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+
+          {/* Image Counter */}
+          <div className="absolute right-3 top-3 z-10 bg-black/50 text-white font-mono text-[10px] px-2 py-0.5 rounded backdrop-blur-[2px] font-semibold">
+            {currentIndex + 1} / {images.length}
+          </div>
+
+          {/* Dots */}
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1">
+            {images.slice(0, 10).map((_, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => onDotClick(e, idx)}
+                className={cn(
+                  "size-1.5 rounded-full transition-all duration-300",
+                  idx === currentIndex ? "bg-white w-3" : "bg-white/50 hover:bg-white"
+                )}
+                aria-label={`Go to image ${idx + 1}`}
+              />
+            ))}
+            {images.length > 10 && (
+              <span className="text-[8px] text-white/70 self-center ml-0.5">
+                +{images.length - 10}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
   const { locale, t } = useLanguage();
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
 
   const images = vehicle.vehicle_images ?? [];
   const hasMultipleImages = images.length > 1;
-  const cover = images[currentImageIndex];
 
   const isSold = vehicle.availability_status === "sold";
   const isReserved = vehicle.availability_status === "reserved";
 
-  const handlePrev = (e: React.MouseEvent) => {
+  const handlePrev = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  };
+  }, [images.length]);
 
-  const handleNext = (e: React.MouseEvent) => {
+  const handleNext = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
+  }, [images.length]);
 
   const handleDotClick = (e: React.MouseEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
     setCurrentImageIndex(index);
   };
+
+  // Swipe handlers for mobile
+  const swipeHandlers = useSwipe(
+    // Swipe left = next image
+    React.useCallback(() => {
+      setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    }, [images.length]),
+    // Swipe right = prev image
+    React.useCallback(() => {
+      setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    }, [images.length]),
+    hasMultipleImages
+  );
 
   // Localized field helpers
   const brandName = locale === "en" ? vehicle.brand.name_en : vehicle.brand.name_mn;
@@ -69,9 +238,9 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
         {/* Image holder */}
         <div className="relative aspect-[16/10] md:aspect-auto md:w-80 shrink-0 overflow-hidden bg-secondary group/img">
           <Link href={`/inventory/${vehicle.slug}`} className="absolute inset-0 block z-0">
-            {cover ? (
+            {images[currentImageIndex] ? (
               <Image
-                src={getStorageUrl(cover.storage_path)}
+                src={getStorageUrl(images[currentImageIndex].storage_path)}
                 alt={`${brandName} ${modelName}`}
                 fill
                 className="object-cover transition-transform duration-500 group-hover/img:scale-105"
@@ -84,6 +253,15 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
               </div>
             )}
           </Link>
+
+          {/* Touch swipe zone */}
+          {hasMultipleImages && (
+            <div
+              className="absolute inset-0 z-[5]"
+              {...swipeHandlers}
+              style={{ touchAction: "pan-y" }}
+            />
+          )}
 
           {/* Badges */}
           <div className="absolute left-3 top-3 flex flex-col gap-1.5 z-10">
@@ -112,19 +290,19 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
 
           {hasMultipleImages && (
             <>
-              {/* Prev Button */}
+              {/* Prev Button - visible on mobile */}
               <button
                 onClick={handlePrev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all md:opacity-0 md:group-hover/img:opacity-100"
                 aria-label="Previous image"
               >
                 <ChevronLeft className="size-5" />
               </button>
 
-              {/* Next Button */}
+              {/* Next Button - visible on mobile */}
               <button
                 onClick={handleNext}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all md:opacity-0 md:group-hover/img:opacity-100"
                 aria-label="Next image"
               >
                 <ChevronRight className="size-5" />
@@ -137,7 +315,7 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
 
               {/* Dots */}
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1">
-                {images.map((_, idx) => (
+                {images.slice(0, 10).map((_, idx) => (
                   <button
                     key={idx}
                     onClick={(e) => handleDotClick(e, idx)}
@@ -148,6 +326,11 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
                     aria-label={`Go to image ${idx + 1}`}
                   />
                 ))}
+                {images.length > 10 && (
+                  <span className="text-[8px] text-white/70 self-center ml-0.5">
+                    +{images.length - 10}
+                  </span>
+                )}
               </div>
             </>
           )}
@@ -287,9 +470,9 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
       {/* Image container */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary group/img">
         <Link href={`/inventory/${vehicle.slug}`} className="absolute inset-0 block z-0">
-          {cover ? (
+          {images[currentImageIndex] ? (
             <Image
-              src={getStorageUrl(cover.storage_path)}
+              src={getStorageUrl(images[currentImageIndex].storage_path)}
               alt={`${brandName} ${modelName}`}
               fill
               className="object-cover transition-transform duration-500 group-hover/img:scale-105"
@@ -302,6 +485,15 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
             </div>
           )}
         </Link>
+
+        {/* Touch swipe zone - sits above the link on mobile */}
+        {hasMultipleImages && (
+          <div
+            className="absolute inset-0 z-[5] md:pointer-events-none"
+            {...swipeHandlers}
+            style={{ touchAction: "pan-y" }}
+          />
+        )}
 
         {/* Badges */}
         <div className="absolute left-3 top-3 flex flex-col gap-1.5 z-10">
@@ -330,19 +522,19 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
 
         {hasMultipleImages && (
           <>
-            {/* Prev Button */}
+            {/* Prev Button - visible on mobile */}
             <button
               onClick={handlePrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all md:opacity-0 md:group-hover/img:opacity-100"
               aria-label="Previous image"
             >
               <ChevronLeft className="size-5" />
             </button>
 
-            {/* Next Button */}
+            {/* Next Button - visible on mobile */}
             <button
               onClick={handleNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/img:opacity-100"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex size-8 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-[2px] transition-all md:opacity-0 md:group-hover/img:opacity-100"
               aria-label="Next image"
             >
               <ChevronRight className="size-5" />
@@ -355,7 +547,7 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
 
             {/* Dots */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1">
-              {images.map((_, idx) => (
+              {images.slice(0, 10).map((_, idx) => (
                 <button
                   key={idx}
                   onClick={(e) => handleDotClick(e, idx)}
@@ -366,6 +558,11 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
                   aria-label={`Go to image ${idx + 1}`}
                 />
               ))}
+              {images.length > 10 && (
+                <span className="text-[8px] text-white/70 self-center ml-0.5">
+                  +{images.length - 10}
+                </span>
+              )}
             </div>
           </>
         )}

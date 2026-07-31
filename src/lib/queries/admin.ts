@@ -58,7 +58,8 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
       body_type:body_types(*),
       exterior_color:colors!vehicles_exterior_color_id_fkey(*),
       interior_color:colors!vehicles_interior_color_id_fkey(*),
-      vehicle_images(id, storage_path, sort_order)`
+      vehicle_images(id, storage_path, sort_order),
+      vehicle_videos(id, storage_path)`
     )
     .eq("id", id)
     .single();
