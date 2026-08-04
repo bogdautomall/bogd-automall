@@ -240,15 +240,17 @@ export async function createVehicle(formData: FormData) {
     (f) => f && f.size > 0
   );
 
-  // Parse the image order from form data (for drag-and-drop ordering)
-  const imageOrderStr = formData.get("image_order");
-  let orderedImages = images;
-  if (imageOrderStr && typeof imageOrderStr === "string") {
+  // new_image_positions contains the display position (sort_order) for each new file
+  const newImagePositionsStr = formData.get("new_image_positions");
+  let newImagePositions: number[] = images.map((_, i) => i); // default: sequential
+  if (newImagePositionsStr && typeof newImagePositionsStr === "string") {
     try {
-      const order = JSON.parse(imageOrderStr) as number[];
-      orderedImages = order.map((idx) => images[idx]).filter(Boolean);
+      const parsed = JSON.parse(newImagePositionsStr) as number[];
+      if (Array.isArray(parsed) && parsed.length === images.length) {
+        newImagePositions = parsed;
+      }
     } catch {
-      orderedImages = images;
+      // keep defaults
     }
   }
 
@@ -290,7 +292,10 @@ export async function createVehicle(formData: FormData) {
 
   if (error) throw new Error(`Машин үүсгэхэд алдаа гарлаа: ${error.message}`);
 
-  await uploadVehicleImages(supabase, vehicle.id, orderedImages, 0);
+  // Upload each image with its correct sort_order position
+  for (let i = 0; i < images.length; i++) {
+    await uploadSingleImage(supabase, vehicle.id, images[i], newImagePositions[i] ?? i);
+  }
 
   if (videos.length > 0) {
     await uploadVehicleVideos(supabase, vehicle.id, videos);
@@ -337,22 +342,36 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
     (f) => f && f.size > 0
   );
 
-  // Apply image reorder if provided
+  // Apply image reorder for existing images
   const imageOrderStr = formData.get("image_order");
   if (imageOrderStr && typeof imageOrderStr === "string") {
     try {
       const orderData = JSON.parse(imageOrderStr) as { id: string; sort_order: number }[];
-      if (Array.isArray(orderData) && orderData.length > 0 && orderData[0].id) {
-        // This is existing image reorder data
-        for (const item of orderData) {
-          await supabase
-            .from("vehicle_images")
-            .update({ sort_order: item.sort_order })
-            .eq("id", item.id);
-        }
+      if (Array.isArray(orderData) && orderData.length > 0 && orderData[0]?.id) {
+        // Update all existing images in parallel
+        await Promise.all(
+          orderData.map((item) =>
+            supabase
+              .from("vehicle_images")
+              .update({ sort_order: item.sort_order })
+              .eq("id", item.id)
+          )
+        );
       }
     } catch {
       // ignore parse errors
+    }
+  }
+
+  // Parse new image positions (position in the combined display list)
+  const newImagePositionsStr = formData.get("new_image_positions");
+  let newImagePositions: number[] | null = null;
+  if (newImagePositionsStr && typeof newImagePositionsStr === "string") {
+    try {
+      const parsed = JSON.parse(newImagePositionsStr) as number[];
+      if (Array.isArray(parsed)) newImagePositions = parsed;
+    } catch {
+      // keep null
     }
   }
 
@@ -383,7 +402,11 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
 
   if (error) throw new Error(`Машин шинэчлэхэд алдаа гарлаа: ${error.message}`);
 
-  await uploadVehicleImages(supabase, vehicleId, newImages, existingCount ?? 0);
+  // Upload new images with their correct sort_order positions
+  for (let i = 0; i < newImages.length; i++) {
+    const sortOrder = newImagePositions ? (newImagePositions[i] ?? (existingCount ?? 0) + i) : (existingCount ?? 0) + i;
+    await uploadSingleImage(supabase, vehicleId, newImages[i], sortOrder);
+  }
 
   if (newVideos.length > 0) {
     await uploadVehicleVideos(supabase, vehicleId, newVideos);

@@ -7,59 +7,85 @@ import { signIn } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
 
 export default function AdminLoginPage() {
   const [state, formAction, pending] = useActionState(signIn, { error: null });
 
   return (
-    <main className="flex min-h-[80vh] items-center justify-center px-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-secondary/30 px-4 py-12">
+      <div className="w-full max-w-sm">
+        {/* Logo & title */}
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Image
             src="/logo/logo-256.png"
             alt="Bogd Automall"
-            width={56}
-            height={56}
-            className="rounded-full"
+            width={64}
+            height={64}
+            className="rounded-2xl shadow-lg"
           />
-          <CardTitle className="mt-2">Admin нэвтрэх</CardTitle>
-          <CardDescription>Зөвхөн Bogd Automall ажилтнуудад зориулав.</CardDescription>
-        </CardHeader>
-        <form action={formAction}>
-          <CardContent className="flex flex-col gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight">
+              BOGD ADMIN
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Зөвхөн Bogd Automall ажилтнуудад
+            </p>
+          </div>
+        </div>
+
+        {/* Card */}
+        <div className="rounded-2xl border border-border bg-card shadow-xl px-6 py-8">
+          <form action={formAction} className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Имэйл</Label>
+              <Label htmlFor="email" className="text-sm font-medium">
+                Имэйл
+              </Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
                 placeholder="admin@bogdautomall.mn"
                 required
+                autoComplete="email"
+                className="min-h-[48px] text-base"
+                inputMode="email"
               />
             </div>
+
             <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Нууц үг</Label>
-              <Input id="password" name="password" type="password" required />
+              <Label htmlFor="password" className="text-sm font-medium">
+                Нууц үг
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                className="min-h-[48px] text-base"
+              />
             </div>
+
             {state?.error && (
-              <p className="text-sm text-destructive">{state.error}</p>
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3">
+                <p className="text-sm text-destructive font-medium">{state.error}</p>
+              </div>
             )}
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={pending}>
+
+            <Button
+              type="submit"
+              className="mt-1 min-h-[52px] w-full rounded-xl text-base font-semibold"
+              disabled={pending}
+            >
               {pending ? "Нэвтэрч байна..." : "Нэвтрэх"}
             </Button>
-          </CardFooter>
-        </form>
-      </Card>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} Bogd Automall
+        </p>
+      </div>
     </main>
   );
 }
