@@ -65,6 +65,9 @@ export async function getVehicles(
     query = query.or(orParts.join(","));
   }
 
+  // Featured vehicles always bubble to the top regardless of sort
+  query = query.order("is_featured", { ascending: false });
+
   switch (filters.sort) {
     case "price_asc":
       query = query.order("price", { ascending: true });
