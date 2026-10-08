@@ -80,134 +80,56 @@ function strOrNull(v: FormDataEntryValue | null): string | null {
 }
 
 /**
- * Upload a single file to Supabase storage and insert a record.
- * Returns true on success. Errors are collected, not thrown, so that
- * partial failures don't stop the entire batch.
+ * Reads a JSON array of storage paths that the browser already uploaded.
+ * Only paths under `uploads/` are accepted so a caller can't attach
+ * arbitrary objects from the bucket.
  */
-async function uploadSingleImage(
-  supabase: SupabaseClient,
-  vehicleId: string,
-  file: File,
-  sortOrder: number
-): Promise<{ success: boolean; error?: string }> {
+function parseUploadedPaths(v: FormDataEntryValue | null): string[] {
+  if (!v || typeof v !== "string") return [];
   try {
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${vehicleId}/${crypto.randomUUID()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("vehicle-media")
-      .upload(path, file, { contentType: file.type });
-
-    if (uploadError) {
-      return { success: false, error: `Зураг байршуулахад алдаа: ${uploadError.message}` };
-    }
-
-    const { error: insertError } = await supabase.from("vehicle_images").insert({
-      vehicle_id: vehicleId,
-      storage_path: path,
-      sort_order: sortOrder,
-    });
-
-    if (insertError) {
-      // Clean up the uploaded file if DB insert fails
-      await supabase.storage.from("vehicle-media").remove([path]);
-      return { success: false, error: `Зургийн мэдээлэл хадгалахад алдаа: ${insertError.message}` };
-    }
-
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: `Зураг байршуулахад алдаа: ${String(err)}` };
-  }
-}
-
-/**
- * Upload images in parallel batches to avoid timeouts.
- * Batch size of 3 keeps it fast but avoids overwhelming the server.
- */
-async function uploadVehicleImages(
-  supabase: SupabaseClient,
-  vehicleId: string,
-  files: File[],
-  startOrder: number
-) {
-  const BATCH_SIZE = 3;
-  const errors: string[] = [];
-
-  for (let batchStart = 0; batchStart < files.length; batchStart += BATCH_SIZE) {
-    const batch = files.slice(batchStart, batchStart + BATCH_SIZE);
-    const results = await Promise.all(
-      batch.map((file, i) =>
-        uploadSingleImage(supabase, vehicleId, file, startOrder + batchStart + i)
-      )
+    const parsed = JSON.parse(v);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (p): p is string =>
+        typeof p === "string" && p.startsWith("uploads/") && !p.includes("..")
     );
-
-    for (const result of results) {
-      if (!result.success && result.error) {
-        errors.push(result.error);
-      }
-    }
-  }
-
-  if (errors.length > 0) {
-    throw new Error(`${errors.length} зураг байршуулахад алдаа гарлаа:\n${errors.join("\n")}`);
+  } catch {
+    return [];
   }
 }
 
-/**
- * Upload a single video file to Supabase storage and insert a record.
- */
-async function uploadSingleVideo(
+async function insertVehicleImages(
   supabase: SupabaseClient,
   vehicleId: string,
-  file: File
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const ext = file.name.split(".").pop() || "mp4";
-    const path = `${vehicleId}/videos/${crypto.randomUUID()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("vehicle-media")
-      .upload(path, file, { contentType: file.type });
-
-    if (uploadError) {
-      return { success: false, error: `Бичлэг байршуулахад алдаа: ${uploadError.message}` };
-    }
-
-    const { error: insertError } = await supabase.from("vehicle_videos").insert({
-      vehicle_id: vehicleId,
-      storage_path: path,
-    });
-
-    if (insertError) {
-      await supabase.storage.from("vehicle-media").remove([path]);
-      return { success: false, error: `Бичлэгийн мэдээлэл хадгалахад алдаа: ${insertError.message}` };
-    }
-
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: `Бичлэг байршуулахад алдаа: ${String(err)}` };
-  }
-}
-
-/**
- * Upload videos one-by-one (videos are large, so we do them sequentially).
- */
-async function uploadVehicleVideos(
-  supabase: SupabaseClient,
-  vehicleId: string,
-  files: File[]
+  paths: string[],
+  sortOrders: number[]
 ) {
-  const errors: string[] = [];
-
-  for (const file of files) {
-    const result = await uploadSingleVideo(supabase, vehicleId, file);
-    if (!result.success && result.error) {
-      errors.push(result.error);
-    }
+  if (paths.length === 0) return;
+  const { error } = await supabase.from("vehicle_images").insert(
+    paths.map((storage_path, i) => ({
+      vehicle_id: vehicleId,
+      storage_path,
+      sort_order: sortOrders[i],
+    }))
+  );
+  if (error) {
+    await supabase.storage.from("vehicle-media").remove(paths);
+    throw new Error(`Зургийн мэдээлэл хадгалахад алдаа: ${error.message}`);
   }
+}
 
-  if (errors.length > 0) {
-    throw new Error(`${errors.length} бичлэг байршуулахад алдаа гарлаа:\n${errors.join("\n")}`);
+async function insertVehicleVideos(
+  supabase: SupabaseClient,
+  vehicleId: string,
+  paths: string[]
+) {
+  if (paths.length === 0) return;
+  const { error } = await supabase
+    .from("vehicle_videos")
+    .insert(paths.map((storage_path) => ({ vehicle_id: vehicleId, storage_path })));
+  if (error) {
+    await supabase.storage.from("vehicle-media").remove(paths);
+    throw new Error(`Бичлэгийн мэдээлэл хадгалахад алдаа: ${error.message}`);
   }
 }
 
@@ -229,16 +151,12 @@ export async function createVehicle(formData: FormData) {
     strOrNull(formData.get("interior_color"))
   );
 
-  const images = (formData.getAll("images") as File[]).filter(
-    (f) => f && f.size > 0
-  );
+  const images = parseUploadedPaths(formData.get("image_paths"));
   if (images.length > 20) {
     throw new Error("Нэг машинд хамгийн ихдээ 20 зураг байршуулах боломжтой.");
   }
 
-  const videos = (formData.getAll("videos") as File[]).filter(
-    (f) => f && f.size > 0
-  );
+  const videos = parseUploadedPaths(formData.get("video_paths"));
 
   // new_image_positions contains the display position (sort_order) for each new file
   const newImagePositionsStr = formData.get("new_image_positions");
@@ -290,16 +208,18 @@ export async function createVehicle(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(`Машин үүсгэхэд алдаа гарлаа: ${error.message}`);
-
-  // Upload each image with its correct sort_order position
-  for (let i = 0; i < images.length; i++) {
-    await uploadSingleImage(supabase, vehicle.id, images[i], newImagePositions[i] ?? i);
+  if (error) {
+    await supabase.storage.from("vehicle-media").remove([...images, ...videos]);
+    throw new Error(`Машин үүсгэхэд алдаа гарлаа: ${error.message}`);
   }
 
-  if (videos.length > 0) {
-    await uploadVehicleVideos(supabase, vehicle.id, videos);
-  }
+  await insertVehicleImages(
+    supabase,
+    vehicle.id,
+    images,
+    images.map((_, i) => newImagePositions[i] ?? i)
+  );
+  await insertVehicleVideos(supabase, vehicle.id, videos);
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/");
@@ -329,18 +249,14 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
     .select("id", { count: "exact", head: true })
     .eq("vehicle_id", vehicleId);
 
-  const newImages = (formData.getAll("images") as File[]).filter(
-    (f) => f && f.size > 0
-  );
+  const newImages = parseUploadedPaths(formData.get("image_paths"));
   if ((existingCount ?? 0) + newImages.length > 20) {
     throw new Error(
       `Нэг машинд хамгийн ихдээ 20 зураг байршуулах боломжтой (одоо ${existingCount} байна).`
     );
   }
 
-  const newVideos = (formData.getAll("videos") as File[]).filter(
-    (f) => f && f.size > 0
-  );
+  const newVideos = parseUploadedPaths(formData.get("video_paths"));
 
   // Apply image reorder for existing images
   const imageOrderStr = formData.get("image_order");
@@ -400,17 +316,18 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
     })
     .eq("id", vehicleId);
 
-  if (error) throw new Error(`Машин шинэчлэхэд алдаа гарлаа: ${error.message}`);
-
-  // Upload new images with their correct sort_order positions
-  for (let i = 0; i < newImages.length; i++) {
-    const sortOrder = newImagePositions ? (newImagePositions[i] ?? (existingCount ?? 0) + i) : (existingCount ?? 0) + i;
-    await uploadSingleImage(supabase, vehicleId, newImages[i], sortOrder);
+  if (error) {
+    await supabase.storage.from("vehicle-media").remove([...newImages, ...newVideos]);
+    throw new Error(`Машин шинэчлэхэд алдаа гарлаа: ${error.message}`);
   }
 
-  if (newVideos.length > 0) {
-    await uploadVehicleVideos(supabase, vehicleId, newVideos);
-  }
+  await insertVehicleImages(
+    supabase,
+    vehicleId,
+    newImages,
+    newImages.map((_, i) => newImagePositions?.[i] ?? (existingCount ?? 0) + i)
+  );
+  await insertVehicleVideos(supabase, vehicleId, newVideos);
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/");

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { useFormStatus } from "react-dom";
+import { unstable_rethrow } from "next/navigation";
 import {
   X,
   ImagePlus,
@@ -27,18 +27,38 @@ import {
 } from "@/components/ui/select";
 import { CreatableCombobox } from "@/components/admin/creatable-combobox";
 import { getStorageUrl } from "@/lib/supabase/storage";
+import {
+  MAX_VIDEO_MB,
+  removeUploaded,
+  uploadImages,
+  uploadVideo,
+} from "@/lib/upload-media";
 import { deleteVehicleImage, deleteVehicleVideo } from "@/lib/actions/vehicles";
 import type { VehicleFormOptions } from "@/lib/queries/admin";
 import type { Vehicle, VehicleImage, VehicleVideo } from "@/types/vehicle";
 
 const MAX_IMAGES = 20;
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+function SubmitButton({
+  label,
+  status,
+  pending,
+}: {
+  label: string;
+  status: string;
+  pending: boolean;
+}) {
   return (
-    <Button type="submit" disabled={pending} className="w-full sm:w-auto min-h-[48px]">
-      {pending ? "Хадгалж байна..." : label}
-    </Button>
+    <div className="space-y-2">
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto min-h-[48px]">
+        {pending ? "Хадгалж байна..." : label}
+      </Button>
+      {pending && status && (
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {status} — хуудсыг хааж болохгүй.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -325,6 +345,7 @@ export function VehicleForm({
     vehicle?.vehicle_videos ?? []
   );
   const [newVideoFiles, setNewVideoFiles] = React.useState<File[]>([]);
+  const [uploadStatus, setUploadStatus] = React.useState("");
 
   // Hidden file input refs
   const imageInputRef = React.useRef<HTMLInputElement>(null);
@@ -365,8 +386,17 @@ export function VehicleForm({
   }
 
   function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(e.target.files ?? []);
-    if (picked.length === 0) return;
+    const all = Array.from(e.target.files ?? []);
+    const picked = all.filter((f) => f.size <= MAX_VIDEO_MB * 1024 * 1024);
+    if (picked.length < all.length) {
+      alert(
+        `Бичлэг бүр ${MAX_VIDEO_MB}MB-аас ихгүй байх ёстой. Том бичлэгийг богиносгох эсвэл бага чанартай (1080p) бичиж оруулна уу.`
+      );
+    }
+    if (picked.length === 0) {
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      return;
+    }
     setNewVideoFiles((prev) => [...prev, ...picked]);
     if (videoInputRef.current) {
       videoInputRef.current.value = "";
@@ -397,50 +427,103 @@ export function VehicleForm({
     setNewVideoFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
-  // Build FormData with correct ordering
-  function handleFormAction(formData: FormData) {
-    // Remove any auto-added entries
+  // Build FormData with correct ordering. Files are uploaded to storage
+  // first; only their storage paths are sent to the Server Action.
+  async function handleFormAction(formData: FormData) {
     formData.delete("images");
     formData.delete("videos");
     formData.delete("image_order");
     formData.delete("new_image_positions");
 
-    // Separate items by type while preserving display order
     const newFilesInOrder: File[] = [];
     const existingOrderData: { id: string; sort_order: number }[] = [];
-    // Tracks position of each new file in the combined list (for create mode)
+    // Tracks position of each new file in the combined list
     const newImagePositions: number[] = [];
 
     imageItems.forEach((item, displayIndex) => {
       if (item.type === "new" && item.file) {
         newFilesInOrder.push(item.file);
         newImagePositions.push(displayIndex);
-        formData.append("images", item.file);
       } else if (item.type === "existing") {
         existingOrderData.push({ id: item.id, sort_order: displayIndex });
       }
     });
 
-    // Send existing image reorder data
+    const warnBeforeLeave = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warnBeforeLeave);
+
+    const imagePaths: string[] = [];
+    const videoPaths: string[] = [];
+    try {
+      if (newFilesInOrder.length > 0) {
+        imagePaths.push(
+          ...(await uploadImages(newFilesInOrder, (done, total) =>
+            setUploadStatus(`Зураг байршуулж байна: ${done}/${total}`)
+          ))
+        );
+      }
+      for (let i = 0; i < newVideoFiles.length; i++) {
+        const label = `Бичлэг байршуулж байна (${i + 1}/${newVideoFiles.length})`;
+        videoPaths.push(
+          await uploadVideo(newVideoFiles[i], (percent) =>
+            setUploadStatus(`${label}: ${percent}%`)
+          )
+        );
+      }
+    } catch (err) {
+      window.removeEventListener("beforeunload", warnBeforeLeave);
+      setUploadStatus("");
+      await removeUploaded([...imagePaths, ...videoPaths]);
+      alert(
+        `Файл байршуулахад алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.
+
+${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+      return;
+    }
+    window.removeEventListener("beforeunload", warnBeforeLeave);
+    setUploadStatus("Мэдээллийг хадгалж байна...");
+
     if (existingOrderData.length > 0) {
       formData.set("image_order", JSON.stringify(existingOrderData));
     }
-
-    // Send new image position data so server knows where each new file goes
-    if (newImagePositions.length > 0) {
+    if (imagePaths.length > 0) {
+      formData.set("image_paths", JSON.stringify(imagePaths));
       formData.set("new_image_positions", JSON.stringify(newImagePositions));
     }
-
-    // Add video files
-    for (const file of newVideoFiles) {
-      formData.append("videos", file);
+    if (videoPaths.length > 0) {
+      formData.set("video_paths", JSON.stringify(videoPaths));
     }
 
-    return action(formData);
+    try {
+      await action(formData);
+    } catch (err) {
+      // Let Next handle the success redirect; anything else is a real error.
+      unstable_rethrow(err);
+      await removeUploaded([...imagePaths, ...videoPaths]);
+      setUploadStatus("");
+      alert(
+        `Хадгалахад алдаа гарлаа:
+
+${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  // onSubmit (not <form action>) so a failed upload keeps everything the
+  // user typed — React resets the form after a form action completes.
+  const [pending, startTransition] = React.useTransition();
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const formData = new FormData(e.currentTarget);
+    startTransition(() => handleFormAction(formData));
   }
 
   return (
-    <form action={handleFormAction} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-8">
       {/* Hidden inputs mirror combobox state */}
       <input type="hidden" name="brand" value={brand} />
       <input type="hidden" name="model" value={model} />
@@ -733,7 +816,6 @@ export function VehicleForm({
             <input
               ref={imageInputRef}
               type="file"
-              name="images"
               accept="image/*"
               multiple
               className="hidden"
@@ -807,7 +889,6 @@ export function VehicleForm({
           <input
             ref={videoInputRef}
             type="file"
-            name="videos"
             accept="video/*"
             multiple
             className="hidden"
@@ -815,12 +896,16 @@ export function VehicleForm({
           />
         </label>
         <p className="mt-2 text-xs text-muted-foreground">
-          MP4, MOV, WebM зэрэг форматууд дэмжинэ.
+          MP4, MOV, WebM зэрэг форматууд дэмжинэ. Нэг бичлэг {MAX_VIDEO_MB}MB хүртэл.
         </p>
       </section>
 
       <div className="pt-2">
-        <SubmitButton label={vehicle ? "Хадгалах" : "Машин нэмэх"} />
+        <SubmitButton
+          label={vehicle ? "Хадгалах" : "Машин нэмэх"}
+          status={uploadStatus}
+          pending={pending}
+        />
       </div>
     </form>
   );
