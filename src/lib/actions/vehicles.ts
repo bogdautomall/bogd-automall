@@ -135,6 +135,9 @@ async function insertVehicleVideos(
 
 async function saveNewVehicle(formData: FormData) {
   const { supabase } = await requireAdmin();
+  if (!formData.get("brand") || !formData.get("model")) {
+    throw new Error("Марк болон загвараа сонгоно уу.");
+  }
 
   const brandId = await resolveBrand(supabase, String(formData.get("brand")));
   const modelId = await resolveModel(
@@ -247,6 +250,9 @@ export async function createVehicle(formData: FormData): Promise<SaveVehicleResu
 
 async function saveVehicleUpdate(vehicleId: string, formData: FormData) {
   const { supabase } = await requireAdmin();
+  if (!formData.get("brand") || !formData.get("model")) {
+    throw new Error("Марк болон загвараа сонгоно уу.");
+  }
 
   const brandId = await resolveBrand(supabase, String(formData.get("brand")));
   const modelId = await resolveModel(

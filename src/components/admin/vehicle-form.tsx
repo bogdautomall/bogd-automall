@@ -525,6 +525,16 @@ ${errorMessage}`);
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending) return;
+    // Brand/model live in hidden inputs, so the browser's `required`
+    // check doesn't cover them.
+    if (!brand || !model) {
+      alert(
+        !brand
+          ? "Марк сонгоно уу."
+          : "Загвар сонгоно уу. Шинэ загвар бол бичээд доор гарах \"шинээр нэмэх\" мөрийг дарна уу."
+      );
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     startTransition(() => handleFormAction(formData));
   }
