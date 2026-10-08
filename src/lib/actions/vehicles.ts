@@ -133,7 +133,7 @@ async function insertVehicleVideos(
   }
 }
 
-export async function createVehicle(formData: FormData) {
+async function saveNewVehicle(formData: FormData) {
   const { supabase } = await requireAdmin();
 
   const brandId = await resolveBrand(supabase, String(formData.get("brand")));
@@ -220,13 +220,32 @@ export async function createVehicle(formData: FormData) {
     images.map((_, i) => newImagePositions[i] ?? i)
   );
   await insertVehicleVideos(supabase, vehicle.id, videos);
+}
+
+export type SaveVehicleResult = { error: string } | undefined;
+
+/**
+ * Errors are returned, not thrown: Next.js replaces thrown Server Action
+ * messages with a generic text in production, hiding the real cause.
+ */
+function toResult(action: string, err: unknown): SaveVehicleResult {
+  console.error(`[${action}]`, err);
+  return { error: err instanceof Error ? err.message : String(err) };
+}
+
+export async function createVehicle(formData: FormData): Promise<SaveVehicleResult> {
+  try {
+    await saveNewVehicle(formData);
+  } catch (err) {
+    return toResult("createVehicle", err);
+  }
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/");
   redirect("/admin/dashboard");
 }
 
-export async function updateVehicle(vehicleId: string, formData: FormData) {
+async function saveVehicleUpdate(vehicleId: string, formData: FormData) {
   const { supabase } = await requireAdmin();
 
   const brandId = await resolveBrand(supabase, String(formData.get("brand")));
@@ -328,6 +347,17 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
     newImages.map((_, i) => newImagePositions?.[i] ?? (existingCount ?? 0) + i)
   );
   await insertVehicleVideos(supabase, vehicleId, newVideos);
+}
+
+export async function updateVehicle(
+  vehicleId: string,
+  formData: FormData
+): Promise<SaveVehicleResult> {
+  try {
+    await saveVehicleUpdate(vehicleId, formData);
+  } catch (err) {
+    return toResult("updateVehicle", err);
+  }
 
   revalidatePath("/admin/dashboard");
   revalidatePath("/");

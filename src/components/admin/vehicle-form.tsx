@@ -33,7 +33,11 @@ import {
   uploadImages,
   uploadVideo,
 } from "@/lib/upload-media";
-import { deleteVehicleImage, deleteVehicleVideo } from "@/lib/actions/vehicles";
+import {
+  deleteVehicleImage,
+  deleteVehicleVideo,
+  type SaveVehicleResult,
+} from "@/lib/actions/vehicles";
 import type { VehicleFormOptions } from "@/lib/queries/admin";
 import type { Vehicle, VehicleImage, VehicleVideo } from "@/types/vehicle";
 
@@ -318,7 +322,7 @@ export function VehicleForm({
 }: {
   options: VehicleFormOptions;
   vehicle?: Vehicle;
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<SaveVehicleResult>;
 }) {
   const [brand, setBrand] = React.useState(vehicle?.brand?.id ?? "");
   const [model, setModel] = React.useState(vehicle?.model?.id ?? "");
@@ -497,18 +501,21 @@ ${
       formData.set("video_paths", JSON.stringify(videoPaths));
     }
 
+    let errorMessage: string | undefined;
     try {
-      await action(formData);
+      errorMessage = (await action(formData))?.error;
     } catch (err) {
       // Let Next handle the success redirect; anything else is a real error.
       unstable_rethrow(err);
+      errorMessage = err instanceof Error ? err.message : String(err);
+    }
+
+    if (errorMessage) {
       await removeUploaded([...imagePaths, ...videoPaths]);
       setUploadStatus("");
-      alert(
-        `Хадгалахад алдаа гарлаа:
+      alert(`Хадгалахад алдаа гарлаа:
 
-${err instanceof Error ? err.message : String(err)}`
-      );
+${errorMessage}`);
     }
   }
 
