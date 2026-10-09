@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireAdmin } from "@/lib/actions/require-admin";
+import { describeSaveError, validateVehicleNumbers } from "@/lib/vehicle-validation";
 
 const NEW_PREFIX = "__new__:";
 
@@ -138,6 +139,8 @@ async function saveNewVehicle(formData: FormData) {
   if (!formData.get("brand") || !formData.get("model")) {
     throw new Error("Марк болон загвараа сонгоно уу.");
   }
+  const numberError = validateVehicleNumbers(formData);
+  if (numberError) throw new Error(numberError);
 
   const brandId = await resolveBrand(supabase, String(formData.get("brand")));
   const modelId = await resolveModel(
@@ -213,7 +216,7 @@ async function saveNewVehicle(formData: FormData) {
 
   if (error) {
     await supabase.storage.from("vehicle-media").remove([...images, ...videos]);
-    throw new Error(`Машин үүсгэхэд алдаа гарлаа: ${error.message}`);
+    throw new Error(describeSaveError("Машин үүсгэхэд алдаа гарлаа", error, formData));
   }
 
   await insertVehicleImages(
@@ -253,6 +256,8 @@ async function saveVehicleUpdate(vehicleId: string, formData: FormData) {
   if (!formData.get("brand") || !formData.get("model")) {
     throw new Error("Марк болон загвараа сонгоно уу.");
   }
+  const numberError = validateVehicleNumbers(formData);
+  if (numberError) throw new Error(numberError);
 
   const brandId = await resolveBrand(supabase, String(formData.get("brand")));
   const modelId = await resolveModel(
@@ -343,7 +348,7 @@ async function saveVehicleUpdate(vehicleId: string, formData: FormData) {
 
   if (error) {
     await supabase.storage.from("vehicle-media").remove([...newImages, ...newVideos]);
-    throw new Error(`Машин шинэчлэхэд алдаа гарлаа: ${error.message}`);
+    throw new Error(describeSaveError("Машин шинэчлэхэд алдаа гарлаа", error, formData));
   }
 
   await insertVehicleImages(

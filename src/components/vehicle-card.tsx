@@ -355,7 +355,7 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
                   {vehicle.import_year && (
                     <>
                       <span className="text-border">•</span>
-                      <span>{vehicle.import_year} онд орсон</span>
+                      <span>{vehicle.import_year} онд орж ирсэн</span>
                     </>
                   )}
                   <span className="text-border">•</span>
@@ -585,7 +585,7 @@ export function VehicleCard({ vehicle, layout = "grid" }: VehicleCardProps) {
             {vehicle.import_year && (
               <>
                 <span className="text-border">•</span>
-                <span>{vehicle.import_year} орсон</span>
+                <span>{vehicle.import_year} орж ирсэн</span>
               </>
             )}
           </p>

@@ -38,6 +38,12 @@ import {
   deleteVehicleVideo,
   type SaveVehicleResult,
 } from "@/lib/actions/vehicles";
+import {
+  MAX_ENGINE_SIZE_LITERS,
+  MAX_MILEAGE_KM,
+  MIN_VEHICLE_YEAR,
+  maxVehicleYear,
+} from "@/lib/vehicle-validation";
 import type { VehicleFormOptions } from "@/lib/queries/admin";
 import type { Vehicle, VehicleImage, VehicleVideo } from "@/types/vehicle";
 
@@ -580,6 +586,8 @@ ${errorMessage}`);
             name="manufacturing_year"
             type="number"
             required
+            min={MIN_VEHICLE_YEAR}
+            max={maxVehicleYear()}
             defaultValue={vehicle?.manufacturing_year}
             inputMode="numeric"
           />
@@ -593,6 +601,8 @@ ${errorMessage}`);
             id="import_year"
             name="import_year"
             type="number"
+            min={MIN_VEHICLE_YEAR}
+            max={maxVehicleYear()}
             defaultValue={vehicle?.import_year ?? undefined}
             inputMode="numeric"
           />
@@ -606,6 +616,8 @@ ${errorMessage}`);
             id="mileage"
             name="mileage"
             type="number"
+            min={0}
+            max={MAX_MILEAGE_KM}
             defaultValue={vehicle?.mileage ?? undefined}
             inputMode="numeric"
           />
@@ -620,6 +632,7 @@ ${errorMessage}`);
             name="price"
             type="number"
             required
+            min={0}
             defaultValue={vehicle?.price}
             inputMode="numeric"
           />
@@ -698,6 +711,8 @@ ${errorMessage}`);
             name="engine_size"
             type="number"
             step="0.1"
+            min={0.1}
+            max={MAX_ENGINE_SIZE_LITERS}
             defaultValue={vehicle?.engine_size ?? undefined}
             inputMode="decimal"
           />
